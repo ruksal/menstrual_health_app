@@ -2,21 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-void main() => runApp(MenstrualApp());
+void main() => runApp(const MenstrualApp());
 
 class MenstrualApp extends StatelessWidget {
+  const MenstrualApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Menstrual Health Checker',
-      theme: ThemeData.dark().copyWith(
+      title: '🌸 Menstrual Health Dashboard',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        brightness: Brightness.dark,
         primaryColor: Colors.pinkAccent,
-        scaffoldBackgroundColor: Color(0xFF121212),
+        scaffoldBackgroundColor: const Color(0xFF18122B),
         colorScheme: ColorScheme.dark(
           primary: Colors.pinkAccent,
-          secondary: Colors.pink,
+          secondary: Colors.purpleAccent,
         ),
-        textTheme: TextTheme(
+        textTheme: const TextTheme(
           bodyMedium: TextStyle(color: Colors.white70, fontSize: 16),
           titleMedium: TextStyle(
             color: Colors.white,
@@ -25,27 +29,36 @@ class MenstrualApp extends StatelessWidget {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: Color(0xFF1E1E1E),
+          fillColor: const Color(0xFF2D3250),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.pinkAccent),
+            borderSide: const BorderSide(color: Colors.pinkAccent),
           ),
-          labelStyle: TextStyle(color: Colors.white70),
+          labelStyle: const TextStyle(color: Colors.white70),
         ),
       ),
-      home: MenstrualForm(),
+      home: const MainScreen(),
     );
   }
 }
 
-class MenstrualForm extends StatefulWidget {
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
+
   @override
-  _MenstrualFormState createState() => _MenstrualFormState();
+  State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MenstrualFormState extends State<MenstrualForm> {
+class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
+  final Map<String, String> labelDescriptions = {
+    'Oligomenorrhea': 'Infrequent periods (cycle > 35 days)',
+    'Polymenorrhea': 'Frequent periods (cycle < 21 days)',
+    'Menorrhagia': 'Heavy or prolonged menstrual bleeding',
+    'Amenorrhea': 'No periods for 3 or more months',
+    'Intermenstrual': 'Bleeding or spotting between periods',
+  };
 
   int age = 25;
   double bmi = 22.5;
@@ -59,12 +72,26 @@ class _MenstrualFormState extends State<MenstrualForm> {
   int interEpisodes = 0;
   double variationCoeff = 15.0;
   double disruptionScore = 40.0;
-  String cycleHistory = '28,29,30,31,27,28,29,26,32,30,31,28,29,30,31';
+  String cycleHistory = '28,29,30,31,27,28,29,26,32,30,31';
 
   String conditionResult = '';
   String anomalyResult = '';
+  bool loading = false;
+  String errorMsg = '';
+
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
 
   Future<void> _submitForm() async {
+    setState(() {
+      loading = true;
+      errorMsg = '';
+    });
     final Map<String, dynamic> data = {
       "age": age,
       "bmi": bmi,
@@ -100,25 +127,52 @@ class _MenstrualFormState extends State<MenstrualForm> {
         final condData = jsonDecode(condRes.body);
         final cycleData = jsonDecode(cycleRes.body);
 
-        setState(() {
+        if (condData["error"] != null) {
           setState(() {
-            final resultMap = Map<String, dynamic>.from(condData['result']);
-            conditionResult = resultMap.entries
-                .map((e) => '• ${e.key}: ${e.value}')
-                .join('\n');
+            errorMsg = "❌ ${condData["error"]}";
+            loading = false;
           });
+          return;
+        }
+        if (cycleData["error"] != null) {
+          setState(() {
+            errorMsg = "❌ ${cycleData["error"]}";
+            loading = false;
+          });
+          return;
+        }
+
+        final Map<String, dynamic> resultMap = Map<String, dynamic>.from(
+          condData['result'],
+        );
+
+        setState(() {
+          final List<String> detected = resultMap.entries
+              .where((e) => e.value == 1)
+              .map(
+                (e) =>
+                    '• ${e.key}: ${labelDescriptions[e.key] ?? "Description not available"}',
+              )
+              .toList();
+
+          conditionResult = detected.isEmpty
+              ? "No abnormal condition detected 🎉"
+              : detected.join('\n');
 
           anomalyResult =
-              'Next cycle: ${cycleData['predicted']}\nAnomaly: ${cycleData['anomaly'] ? "Yes ⚠️" : "No"}';
+              "📈 Next cycle prediction: ${cycleData['predicted']}\n🚨 Anomaly: ${cycleData['anomaly'] ? "Yes ⚠️" : "No"}";
+          loading = false;
         });
       } else {
         setState(() {
-          conditionResult = "Error: Could not get predictions.";
+          errorMsg = "❌ Error: Could not get predictions.";
+          loading = false;
         });
       }
     } catch (e) {
       setState(() {
-        conditionResult = "Error: ${e.toString()}";
+        errorMsg = "❌ Exception: ${e.toString()}";
+        loading = false;
       });
     }
   }
@@ -127,139 +181,216 @@ class _MenstrualFormState extends State<MenstrualForm> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("🌸 Menstrual Checker"),
+        title: const Text("🌸 Menstrual Health Dashboard"),
         centerTitle: true,
-        elevation: 0,
         backgroundColor: Colors.pinkAccent,
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          tabs: const [
+            Tab(icon: Icon(Icons.analytics_outlined), text: "Results"),
+            Tab(icon: Icon(Icons.history), text: "History"),
+          ],
+        ),
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: 600), // max width in pixels
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  _buildCard([
-                    _buildNumberField(
-                      "Age",
-                      age,
-                      (val) => age = int.parse(val),
-                    ),
-                    _buildNumberField(
-                      "BMI",
-                      bmi,
-                      (val) => bmi = double.parse(val),
-                    ),
-                    _buildDropdown("Life Stage", lifeStage, [
-                      "adolescent",
-                      "reproductive",
-                      "perimenopausal",
-                      "postmenopausal",
-                    ], (val) => lifeStage = val!),
-                    _buildNumberField(
-                      "Tracking Duration",
-                      trackingDuration,
-                      (val) => trackingDuration = int.parse(val),
-                    ),
-                  ]),
-                  _buildCard([
-                    _buildSlider(
-                      "Pain Score",
-                      painScore,
-                      0,
-                      5,
-                      (val) => painScore = val.toInt(),
-                    ),
-                    _buildNumberField(
-                      "Avg Cycle Length",
-                      avgCycleLength,
-                      (val) => avgCycleLength = double.parse(val),
-                    ),
-                    _buildNumberField(
-                      "Cycle Variation",
-                      cycleVariation,
-                      (val) => cycleVariation = double.parse(val),
-                    ),
-                    _buildNumberField(
-                      "Avg Bleeding Days",
-                      avgBleedingDays,
-                      (val) => avgBleedingDays = double.parse(val),
-                    ),
-                    _buildSlider(
-                      "Bleeding Volume Score",
-                      bleedingScore,
-                      0,
-                      3,
-                      (val) => bleedingScore = val.toInt(),
-                    ),
-                    _buildSlider(
-                      "Intermenstrual Episodes",
-                      interEpisodes,
-                      0,
-                      10,
-                      (val) => interEpisodes = val.toInt(),
-                    ),
-                  ]),
-                  _buildCard([
-                    _buildNumberField(
-                      "Variation Coefficient",
-                      variationCoeff,
-                      (val) => variationCoeff = double.parse(val),
-                    ),
-                    _buildNumberField(
-                      "Disruption Score",
-                      disruptionScore,
-                      (val) => disruptionScore = double.parse(val),
-                    ),
-                    TextFormField(
-                      style: TextStyle(color: Colors.white),
-                      initialValue: cycleHistory,
-                      decoration: InputDecoration(
-                        labelText: "Cycle History (comma-separated)",
-                      ),
-                      onChanged: (val) => cycleHistory = val,
-                    ),
-                  ]),
-                  SizedBox(height: 20),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.pinkAccent,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 40,
-                        vertical: 14,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                    onPressed: _submitForm,
-                    child: Text(
-                      "Submit",
-                      style: TextStyle(fontSize: 18, color: Colors.white),
-                    ),
-                  ),
-                  SizedBox(height: 20),
-                  _buildResultCard("Condition Result", conditionResult),
-                  _buildResultCard("Anomaly Detection", anomalyResult),
-                ],
+      body: TabBarView(
+        controller: _tabController,
+        children: [_buildResultsTab(), _buildHistoryTab()],
+      ),
+    );
+  }
+
+  Widget _buildResultsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 500),
+                curve: Curves.easeInOut,
+                child: _buildFormCard(),
               ),
-            ),
+              const SizedBox(height: 20),
+              loading
+                  ? const CircularProgressIndicator(color: Colors.pinkAccent)
+                  : errorMsg.isNotEmpty
+                  ? _buildErrorCard(errorMsg)
+                  : Column(
+                      children: [
+                        _buildResultCard(
+                          "🩸 Condition Results",
+                          conditionResult,
+                        ),
+                        _buildResultCard("📊 Anomaly Detection", anomalyResult),
+                      ],
+                    ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildCard(List<Widget> children) {
+  Widget _buildFormCard() {
     return Card(
-      color: Color(0xFF1E1E1E),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      margin: EdgeInsets.only(bottom: 16),
+      color: const Color(0xFF2D3250),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: 8,
       child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(children: children),
+        padding: const EdgeInsets.all(20),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildNumberField(
+                      "Age",
+                      age,
+                      (val) => age = int.parse(val),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildNumberField(
+                      "BMI",
+                      bmi,
+                      (val) => bmi = double.parse(val),
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildDropdown("Life Stage", lifeStage, [
+                      "adolescent",
+                      "reproductive",
+                      "perimenopausal",
+                      "postmenopausal",
+                    ], (val) => lifeStage = val!),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildNumberField(
+                      "Tracking Duration",
+                      trackingDuration,
+                      (val) => trackingDuration = int.parse(val),
+                    ),
+                  ),
+                ],
+              ),
+              _buildSlider(
+                "Pain Score",
+                painScore,
+                0,
+                5,
+                (val) => painScore = val.toInt(),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildNumberField(
+                      "Avg Cycle Length",
+                      avgCycleLength,
+                      (val) => avgCycleLength = double.parse(val),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildNumberField(
+                      "Cycle Variation",
+                      cycleVariation,
+                      (val) => cycleVariation = double.parse(val),
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildNumberField(
+                      "Avg Bleeding Days",
+                      avgBleedingDays,
+                      (val) => avgBleedingDays = double.parse(val),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildSlider(
+                      "Bleeding Volume Score",
+                      bleedingScore,
+                      0,
+                      3,
+                      (val) => bleedingScore = val.toInt(),
+                    ),
+                  ),
+                ],
+              ),
+              _buildSlider(
+                "Intermenstrual Episodes",
+                interEpisodes,
+                0,
+                10,
+                (val) => interEpisodes = val.toInt(),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildNumberField(
+                      "Variation Coefficient",
+                      variationCoeff,
+                      (val) => variationCoeff = double.parse(val),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildNumberField(
+                      "Disruption Score",
+                      disruptionScore,
+                      (val) => disruptionScore = double.parse(val),
+                    ),
+                  ),
+                ],
+              ),
+              TextFormField(
+                style: const TextStyle(color: Colors.white),
+                initialValue: cycleHistory,
+                decoration: const InputDecoration(
+                  labelText: "Cycle History (comma-separated)",
+                  prefixIcon: Icon(Icons.timeline, color: Colors.pinkAccent),
+                ),
+                onChanged: (val) => cycleHistory = val,
+              ),
+              const SizedBox(height: 20),
+              Center(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.pinkAccent,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 40,
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  onPressed: loading ? null : _submitForm,
+                  icon: const Icon(Icons.search, color: Colors.white),
+                  label: const Text(
+                    "Check Health",
+                    style: TextStyle(fontSize: 18, color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -268,22 +399,48 @@ class _MenstrualFormState extends State<MenstrualForm> {
     return Card(
       color: Colors.black45,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      margin: EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 16),
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               title,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: Colors.pinkAccent,
               ),
             ),
-            SizedBox(height: 8),
-            Text(result, style: TextStyle(fontSize: 16, color: Colors.white70)),
+            const SizedBox(height: 8),
+            Text(
+              result,
+              style: const TextStyle(fontSize: 16, color: Colors.white70),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorCard(String error) {
+    return Card(
+      color: Colors.red.shade900,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            const Icon(Icons.error, color: Colors.white),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                error,
+                style: const TextStyle(fontSize: 16, color: Colors.white),
+              ),
+            ),
           ],
         ),
       ),
@@ -298,7 +455,7 @@ class _MenstrualFormState extends State<MenstrualForm> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: TextFormField(
-        style: TextStyle(color: Colors.white),
+        style: const TextStyle(color: Colors.white),
         initialValue: value.toString(),
         decoration: InputDecoration(labelText: label),
         keyboardType: TextInputType.number,
@@ -322,8 +479,8 @@ class _MenstrualFormState extends State<MenstrualForm> {
             .toList(),
         onChanged: onChanged,
         decoration: InputDecoration(labelText: label),
-        dropdownColor: Color(0xFF1E1E1E),
-        style: TextStyle(color: Colors.white),
+        dropdownColor: const Color(0xFF2D3250),
+        style: const TextStyle(color: Colors.white),
       ),
     );
   }
@@ -338,7 +495,7 @@ class _MenstrualFormState extends State<MenstrualForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("$label: $value", style: TextStyle(color: Colors.white70)),
+        Text("$label: $value", style: const TextStyle(color: Colors.white70)),
         Slider(
           value: value.toDouble(),
           min: min.toDouble(),
@@ -346,11 +503,27 @@ class _MenstrualFormState extends State<MenstrualForm> {
           divisions: max - min,
           label: value.toString(),
           activeColor: Colors.pinkAccent,
-          onChanged: (val) => setState(() {
-            onChanged(val);
-          }),
+          onChanged: (val) => setState(() => onChanged(val)),
         ),
       ],
+    );
+  }
+
+  Widget _buildHistoryTab() {
+    // Placeholder for future history feature
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.history, size: 60, color: Colors.pinkAccent),
+          SizedBox(height: 20),
+          Text(
+            "Cycle history and previous results will appear here.",
+            style: TextStyle(fontSize: 18, color: Colors.white70),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }

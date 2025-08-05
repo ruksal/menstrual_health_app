@@ -15,6 +15,13 @@ ts_scaler = joblib.load("models/lstm_timeseries_scaler.pkl")
 LABELS = ['Oligomenorrhea', 'Polymenorrhea', 'Menorrhagia', 'Amenorrhea', 'Intermenstrual']
 STAGES = ["adolescent", "reproductive", "perimenopausal", "postmenopausal"]
 
+LABEL_DESCRIPTIONS = {
+    'Oligomenorrhea': 'Infrequent periods (cycle > 35 days)',
+    'Polymenorrhea': 'Frequent periods (cycle < 21 days)',
+    'Menorrhagia': 'Heavy or prolonged menstrual bleeding',
+    'Amenorrhea': 'No periods for 3 or more months',
+    'Intermenstrual': 'Bleeding or spotting between periods'
+}
 
 @app.route("/predict-condition", methods=["POST"])
 def predict_condition():
@@ -74,7 +81,5 @@ def index():
     return "Menstrual API is running."
 
 
-if __name__ == "__main__":
-    app.run(debug=True, port=5000)
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
