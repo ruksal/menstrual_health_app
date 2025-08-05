@@ -109,6 +109,51 @@ The backend uses two main AI models:
    - Requires minimum 10 cycle entries
    - Uses time series analysis
 
+## 📊 Data Patterns & Condition Indicators
+
+Based on the AI model features, here are the data patterns that typically indicate each condition:
+
+### 🔍 **Oligomenorrhea** (Infrequent Periods)
+- **Cycle Length**: >35 days average
+- **Cycle Variation**: High variation (>7 days)
+- **Life Stage**: Often adolescent or perimenopausal
+- **Pattern Disruption**: High disruption scores
+- **Tracking Duration**: Longer tracking periods show patterns
+
+### 🔍 **Polymenorrhea** (Frequent Periods)
+- **Cycle Length**: <21 days average
+- **Cycle Variation**: Low to moderate variation
+- **Bleeding Days**: Shorter bleeding periods (2-3 days)
+- **Life Stage**: Often reproductive age
+- **Pain Score**: Usually low to moderate
+
+### 🔍 **Menorrhagia** (Heavy Bleeding)
+- **Bleeding Volume Score**: High scores (3-4)
+- **Bleeding Days**: Longer periods (7+ days)
+- **Pain Score**: High pain scores (3-4)
+- **Age**: Often reproductive age
+- **BMI**: May be related to weight factors
+
+### 🔍 **Amenorrhea** (Absence of Periods)
+- **Cycle Length**: No recent cycles
+- **Life Stage**: Often adolescent or postmenopausal
+- **Age**: Very young (<16) or older (>45)
+- **BMI**: Extreme values (very low or very high)
+- **Pattern Disruption**: Very high disruption scores
+
+### 🔍 **Intermenstrual Bleeding**
+- **Intermenstrual Episodes**: >0 episodes
+- **Cycle Variation**: High variation
+- **Bleeding Volume**: Variable scores
+- **Pain Score**: Moderate to high
+- **Life Stage**: Often reproductive age
+
+### 🔍 **Cycle Anomaly Detection**
+- **Unusual Patterns**: Cycles that deviate >2 standard deviations from mean
+- **Sudden Changes**: Abrupt changes in cycle length
+- **Inconsistent Patterns**: Irregular cycle lengths over time
+- **Minimum Data**: Requires at least 10 cycle entries for accurate detection
+
 ## 📊 API Endpoints
 
 ### POST `/predict-condition`

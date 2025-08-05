@@ -81,6 +81,81 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
   late TabController _tabController;
 
+  // Add solutions map
+  final Map<String, String> conditionSolutions = {
+    'Oligomenorrhea': '''
+Lifestyle Changes: Regular exercise, a balanced diet, and maintaining a healthy weight can help regulate hormones.
+
+Stress Management: Techniques like yoga, meditation, and deep breathing can reduce stress, which can impact the menstrual cycle.
+
+Hormonal Therapy: A doctor may prescribe hormonal birth control pills or other hormone-regulating medications to induce a more regular cycle.
+
+Underlying Condition Treatment: If the oligomenorrhea is caused by a condition like Polycystic Ovary Syndrome (PCOS) or a thyroid disorder, treating the underlying cause is the primary solution.
+''',
+    'Polymenorrhea': '''
+Hormonal Therapy: Oral contraceptives or other hormonal treatments can be used to regulate the cycle and increase the time between periods.
+
+Diet and Lifestyle: Maintaining a healthy diet and weight can help balance hormones.
+
+Thyroid Management: If a thyroid issue is the cause, treating it with medication is essential.
+
+Addressing Uterine Issues: If fibroids or polyps are causing the frequent bleeding, surgical removal may be necessary.
+''',
+    'Menorrhagia': '''
+Medications:
+
+NSAIDs (Nonsteroidal Anti-inflammatory Drugs): Such as ibuprofen, can reduce blood loss and relieve pain.
+
+Tranexamic Acid: This medication helps with blood clotting and can significantly reduce menstrual flow.
+
+Hormonal Birth Control: Pills, patches, or IUDs (Intrauterine Devices) that release hormones can thin the uterine lining, leading to lighter periods.
+
+Lifestyle Adjustments: Regular exercise and a balanced diet can help.
+
+Surgical Options:
+
+Dilation and Curettage (D&C): A procedure to remove some of the uterine lining.
+
+Hysteroscopy: A procedure to examine and remove polyps or fibroids.
+
+Endometrial Ablation: A procedure that destroys the uterine lining to reduce or stop bleeding.
+
+Hysterectomy: The surgical removal of the uterus, considered a last resort for severe cases.
+''',
+    'Amenorrhea': '''
+Lifestyle Modifications: Gaining weight if underweight, reducing excessive exercise, and managing stress can help restore menstruation.
+
+Hormonal Treatment: A doctor may prescribe hormone therapy to trigger a period, especially in cases of primary amenorrhea (never having had a period).
+
+Underlying Condition Treatment:
+
+PCOS Management: Treating PCOS with lifestyle changes and medication.
+
+Thyroid Treatment: Addressing thyroid disorders.
+
+Tumor Removal: If a pituitary or hypothalamic tumor is the cause, it may need to be surgically removed.
+
+Nutritional Support: Ensuring adequate nutrition and addressing any eating disorders.
+''',
+    'Intermenstrual': '''
+Hormonal Contraceptives: Regulating hormones with birth control pills can often stop spotting between periods.
+
+Treatment of Underlying Causes:
+
+Infections: Treating cervical or uterine infections with antibiotics.
+
+Polyp or Fibroid Removal: Surgically removing any non-cancerous growths.
+
+Cervical Lesion Treatment: Addressing any abnormal cells on the cervix.
+
+Avoid Irritants: Limiting douching and certain hygiene products that can irritate the cervix.
+
+Addressing Stress: Reducing stress can help regulate hormones and prevent spotting.
+''',
+  };
+
+  List<String> detectedConditions = [];
+
   @override
   void initState() {
     super.initState();
@@ -155,6 +230,12 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               )
               .toList();
 
+          // Save detected condition keys for solution page
+          detectedConditions = resultMap.entries
+              .where((e) => e.value == 1)
+              .map((e) => e.key)
+              .toList();
+
           conditionResult = detected.isEmpty
               ? "No abnormal condition detected 🎉"
               : detected.join('\n');
@@ -223,6 +304,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                         _buildResultCard(
                           "🩸 Condition Results",
                           conditionResult,
+                          showSolutionButton: detectedConditions.isNotEmpty,
                         ),
                         _buildResultCard("📊 Anomaly Detection", anomalyResult),
                       ],
@@ -395,7 +477,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildResultCard(String title, String result) {
+  // Modify _buildResultCard to accept showSolutionButton and show button inside card
+  Widget _buildResultCard(String title, String result, {bool showSolutionButton = false}) {
     return Card(
       color: Colors.black45,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -403,21 +486,61 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center, // Center horizontally
           children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.pinkAccent,
+            Center(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.pinkAccent,
+                ),
+                textAlign: TextAlign.center,
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              result,
-              style: const TextStyle(fontSize: 16, color: Colors.white70),
+            Center(
+              child: Text(
+                result,
+                style: const TextStyle(fontSize: 16, color: Colors.white70),
+                textAlign: TextAlign.center,
+              ),
             ),
+            if (showSolutionButton)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Center(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.pinkAccent,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 30,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    icon: const Icon(Icons.lightbulb, color: Colors.white),
+                    label: const Text(
+                      "Show Solutions",
+                      style: TextStyle(fontSize: 16, color: Colors.white),
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => SolutionPage(
+                            detectedConditions: detectedConditions,
+                            conditionSolutions: conditionSolutions,
+                            labelDescriptions: labelDescriptions,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -523,6 +646,93 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             textAlign: TextAlign.center,
           ),
         ],
+      ),
+    );
+  }
+}
+
+// Add SolutionPage widget
+class SolutionPage extends StatelessWidget {
+  final List<String> detectedConditions;
+  final Map<String, String> conditionSolutions;
+  final Map<String, String> labelDescriptions;
+
+  const SolutionPage({
+    Key? key,
+    required this.detectedConditions,
+    required this.conditionSolutions,
+    required this.labelDescriptions,
+  }) : super(key: key);
+
+  // Helper to convert solution text to bullet points
+  List<Widget> _buildBullets(String solution) {
+    final lines = solution.trim().split('\n').where((l) => l.trim().isNotEmpty).toList();
+    return lines.map((line) {
+      // If line looks like a section header, bold it
+      final isHeader = line.endsWith(':') || line.endsWith('Options:') || line.endsWith('Medications:');
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (!isHeader)
+              const Text('• ', style: TextStyle(color: Colors.pinkAccent, fontSize: 18)),
+            Expanded(
+              child: Text(
+                line,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white70,
+                  fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("🩺 Solutions"),
+        backgroundColor: Colors.pinkAccent,
+      ),
+      body: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: detectedConditions.length,
+        itemBuilder: (context, idx) {
+          final cond = detectedConditions[idx];
+          final solution = conditionSolutions[cond] ?? "No solution available.";
+          return Card(
+            color: Colors.black45,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            margin: const EdgeInsets.only(bottom: 16),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Center(
+                    child: Text(
+                      '${cond}: ${labelDescriptions[cond] ?? ""}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.pinkAccent,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ..._buildBullets(solution),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
